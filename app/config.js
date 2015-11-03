@@ -5,6 +5,7 @@ var path = require('path');
 
 var db = Bookshelf.initialize({
   client: 'sqlite3',
+  debug: true,
   connection: {
     host: '127.0.0.1',
     user: 'your_database_user',
@@ -53,10 +54,9 @@ db.knex.schema.hasTable('clicks').then(function(exists) {
 db.knex.schema.hasTable('users').then(function(exists) {
   if(!exists) {
     db.knex.schema.createTable('users', function (user) {
-      user.increments('id').primary();
-      user.integer('user_id');
+      user.increments('user_id').primary();
       user.string('username', 30);
-      user.string('password', 50);
+      user.string('password', 53);
     }).then(function (table) {
       console.log('Created Table', table);
     })
@@ -65,9 +65,9 @@ db.knex.schema.hasTable('users').then(function(exists) {
 db.knex.schema.hasTable('sessions').then(function(exists) {
   if(!exists) {
     db.knex.schema.createTable('sessions', function (session) {
-      session.integer('session_id').primary();
+      session.string('session_id', 100).primary();
       session.integer('user_id').references('user_id').inTable('users');
-      session.timestamps();
+      // session.timestamps();
     }).then(function (table) {
       console.log('Created Table', table);
     });

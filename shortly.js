@@ -5,10 +5,15 @@ var bodyParser = require('body-parser');
 var Bookshelf = require('bookshelf');
 var cookieParser = require('cookie-parser');
 var session = require('express-session');
+var bcrypt = require('bcrypt');
+var uuid = require('uuid');
+
 
 
 var db = require('./app/config');
 var Users = require('./app/collections/users');
+var Sessions = require('./app/collections/sessions');
+var Session = require('./app/models/session');
 var User = require('./app/models/user');
 var Links = require('./app/collections/links');
 var Link = require('./app/models/link');
@@ -35,7 +40,7 @@ app.use(session({
 }))
 
 function genuuid(){
-  return 'abc';
+  return uuid.v1();
 };
 
 
@@ -61,9 +66,20 @@ function(req, res) {
 
 app.get('/links', 
 function(req, res) {
-  Links.reset().fetch().then(function(links) {
-    res.send(200, links.models);
-  });
+  // retrieve the userID for the current sessionID and then select * from links where userID matches
+  // then res.send the current set of links
+
+  Sessions.query('where', 'session_id', '=', req.session.id)
+   .fetch().then(function(session) {
+
+    Links.query('where', 'user_id', '=', session.user_id)
+    .fetch().then(function(models) {
+      res.send(200, models);
+    })
+   });
+  // Links.reset().fetch().then(function(links) {
+  //   res.send(200, links.models);
+  // });
 });
 
 app.post('/links', 
@@ -107,37 +123,41 @@ function(req, res) {
 app.post('/signup',
   function (req, res) {
     var uri = req.body.url;
-
-    new User({ username: req.body.username, password: req.body.password }).save();
+    var u = new User({ username: req.body.username, password: req.body.password })
+    u.save();
+    console.log(u.attributes.password)
     res.send(201, null);
   }
 );
 
 app.post('/login',
   function (req, res) {
-    // select password from useres where username = username
-    // if match, then serve links associated with that userid from database
-    // select * from users where username = username
-  
-    console.log(req.body)
-    new User({ username: req.body.username, password: req.body.password }).fetch().then(function (model){
-      console.log(model);
-      if(model !== null) {
-        // correct sign in for user
-        console.log("HEY")
+
+   Users.query('where', 'username', '=', req.body.username)
+   .fetch()
+   .then(function (collection) {
+      // bcrypt.compare(req.body.password, collection.models[0].attributes.password, function (err, result) {
+      //   // console.log(collection.models[0].attributes.password)
+      //   // console.log(collection.models[0].get('password'))
+      //   if (result === true) {
+      //     console.log("correct");
+      //   } else {
+      //     console.log("incorrect");
+      //   }
+      // });
+      if (req.body.password === collection.models[0].attributes.password) {
+        console.log("correct");
         req.session.regenerate(function() {
           req.session.user = req.body.username;
-          console.log(req.session.user);
-          console.log(req.session.id);
-          res.redirect('/'); // show specific links to user
-        });
-
-        // res.send(201);
+          new Session({'session_id': req.session.id, 'user_id': collection.models[0].attributes.user_id}).save().then(function (model) {
+            res.redirect('/links');
+          });
+        })
       } else {
-        console.log(model)
         res.redirect('/login');
       }
-    });  
+   });
+
   }
 );
 
