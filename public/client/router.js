@@ -23,9 +23,6 @@ Shortly.Router = Backbone.Router.extend({
     this.swapView(new Shortly.createLinkView());
   }
 
-  // login: function () {
-  //   // create a new login view 
-  // $('body').html()
-  // }
+ 
 
 });

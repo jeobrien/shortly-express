@@ -3,6 +3,8 @@ var util = require('./lib/utility');
 var partials = require('express-partials');
 var bodyParser = require('body-parser');
 var Bookshelf = require('bookshelf');
+var cookieParser = require('cookie-parser');
+var session = require('express-session');
 
 
 var db = require('./app/config');
@@ -22,6 +24,19 @@ app.use(bodyParser.json());
 // Parse forms (signup/login)
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static(__dirname + '/public'));
+
+// Session Based Authentication
+app.use(cookieParser());
+app.use(session({
+  genid: function(req) {
+    return genuuid() // use UUIDs for session IDs
+  },
+  secret: 'keyboard cat'
+}))
+
+function genuuid(){
+  return 'abc';
+};
 
 
 app.get('/', 
@@ -83,11 +98,17 @@ function(req, res) {
   });
 });
 
+
+/************************************************************/
+// Write your authentication routes here
+/************************************************************/
+
+
 app.post('/signup',
   function (req, res) {
     var uri = req.body.url;
 
-    new User({ username: req.body.username, password: req.body.password }).save();  
+    new User({ username: req.body.username, password: req.body.password }).save();
     res.send(201, null);
   }
 );
@@ -97,41 +118,47 @@ app.post('/login',
     // select password from useres where username = username
     // if match, then serve links associated with that userid from database
     // select * from users where username = username
+  
+    console.log(req.body)
     new User({ username: req.body.username, password: req.body.password }).fetch().then(function (model){
+      console.log(model);
       if(model !== null) {
         // correct sign in for user
-        
-        res.send(201);
+        console.log("HEY")
+        req.session.regenerate(function() {
+          req.session.user = req.body.username;
+          console.log(req.session.user);
+          console.log(req.session.id);
+          res.redirect('/'); // show specific links to user
+        });
+
+        // res.send(201);
       } else {
-        res.send(404);
+        console.log(model)
+        res.redirect('/login');
       }
     });  
-    // var username = req.body.username;
-    // console.log(db.knex.column('password').select().from('Users'))
-    // // User.where('username', username).fetch();
-    // // db.knex.query(function (qb) {
-    // //   qb.where('username', '=', username)
-    // // }).fetch().then(function(model) {
-    // //   console.log(model);
-
-    //   // if (found) {
-    //   //   // user already in db
-    //   //   // then check password
-    //   //   console.log("FOUND");
-    //   //   if(found.password === req.body.password) {
-    //   //     console.log('found it')
-    //   //     res.send(201)
-    //   //     return;
-    //   //   } 
-    //   // } // redirect to signup page
-    //   res.send(201);
-    // // });
   }
 );
 
-/************************************************************/
-// Write your authentication routes here
-/************************************************************/
+app.get('/logout', function (req, res) {
+  req.session.destroy(function () {
+    res.render('index');
+  });
+});
+
+function restrict(req, res, next) {
+  if (req.session.user) {
+    next();
+  } else {
+    req.session.error = 'Access denied!';
+    res.render('index');
+  }
+}
+
+app.get('/restricted', restrict, function(request, response){
+  response.send(200);
+});
 
 
 
