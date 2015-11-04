@@ -45,8 +45,20 @@ function genuuid(){
 
 
 app.get('/', 
-function(req, res) {
-  res.render('index');
+function (req, res) {
+  // console.log(req.session.id);
+  // // res.redirect('/login');
+  // if(req.session.id) {
+  //   Sessions.query('where', 'session_id', '=', req.session.id).fetch().then(function (collection) {
+  //     if(collection) {
+        res.render('index');
+  //     } else {
+  //       res.render('/login');
+  //     }
+  //   });
+  // } else {
+  //   res.render('/login');
+  // }
 });
 
 app.get('/create', 
@@ -100,15 +112,28 @@ function(req, res) {
           console.log('Error reading URL heading: ', err);
           return res.send(404);
         }
+        //look in sessions, get userID for current sessionID
 
-        Links.create({
-          url: uri,
-          title: title,
-          base_url: req.headers.origin
-        })
-        .then(function(newLink) {
-          res.send(200, newLink);
+        Sessions.query('where', 'session_id', '=', req.session.id).fetch().then(function (session) {
+          Links.create({
+            url: uri,
+            title: title,
+            base_url: req.headers.origin,
+            user_id: session.user_id
+          })
+          .then(function(newLink) {
+            res.send(200, newLink);
+          });
         });
+        // Links.create({
+        //   url: uri,
+        //   title: title,
+        //   base_url: req.headers.origin
+        //   user_id:
+        // })
+        // .then(function(newLink) {
+        //   res.send(200, newLink);
+        // });
       });
     }
   });
@@ -124,9 +149,12 @@ app.post('/signup',
   function (req, res) {
     var uri = req.body.url;
     var u = new User({ username: req.body.username, password: req.body.password })
-    u.save();
-    console.log(u.attributes.password)
-    res.send(201, null);
+    // u.on('change', function () {
+    //   u.save();
+    // })
+    u.save();//saving in the user constructor so that it can be in the async callback
+    // console.log(u.attributes.password)
+    res.redirect('/login') // redirect to login to initiate session
   }
 );
 
@@ -145,12 +173,12 @@ app.post('/login',
       //     console.log("incorrect");
       //   }
       // });
+      //COMMENTED BELOW TO REUSE OUR BCRYPT STUFF
       if (req.body.password === collection.models[0].attributes.password) {
-        console.log("correct");
         req.session.regenerate(function() {
           req.session.user = req.body.username;
           new Session({'session_id': req.session.id, 'user_id': collection.models[0].attributes.user_id}).save().then(function (model) {
-            res.redirect('/links');
+            res.render('index');//redirect to the links interface, the links will be fetched by the collection
           });
         })
       } else {
@@ -161,23 +189,14 @@ app.post('/login',
   }
 );
 
-app.get('/logout', function (req, res) {
-  req.session.destroy(function () {
-    res.render('index');
-  });
-});
-
-function restrict(req, res, next) {
-  if (req.session.user) {
-    next();
-  } else {
-    req.session.error = 'Access denied!';
-    res.render('index');
+app.get('/logout', function (req, res){
+  if(req.session.id) {
+    Sessions.query('where', 'session_id', '=', req.session.id).destroy().then(function () {
+    // new Session({session_id: req.session.id}).destroy().then(function () {
+        req.session.destroy();
+        res.redirect('/login');
+      });
   }
-}
-
-app.get('/restricted', restrict, function(request, response){
-  response.send(200);
 });
 
 

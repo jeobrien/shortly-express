@@ -6,7 +6,7 @@ Shortly.Router = Backbone.Router.extend({
   routes: {
     '':       'index',
     'create': 'create',
-    'login': 'login'
+    'login': 'login' 
   },
 
   swapView: function(view){
@@ -14,6 +14,7 @@ Shortly.Router = Backbone.Router.extend({
   },
 
   index: function(){
+    //redirect here on login.  new Links should call fetch on /links url
     var links = new Shortly.Links();
     var linksView = new Shortly.LinksView({ collection: links });
     this.swapView(linksView);

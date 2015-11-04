@@ -10,19 +10,23 @@ var User = db.Model.extend({
 
   initialize: function (params) {
     this.set('username', params.username);
-    var that = this;
+    // var that = this;//trying binding instead of that = this
 
     bcrypt.genSalt(10, function (err, salt) {
       bcrypt.hash(params.password, salt, function (err, hash) {
         if (err) {
           console.log('USER ERROR: ', err);
         } else {
-          that.set('password', hash);
-          console.log('\n' + hash + '\n');
+          this.set('password', hash);//trying binding instead of that = this
+          // this.save();
+         
+          // console.log('\n' + hash + '\n');
         }
-      });
-    });
+      }.bind(this));//trying binding instead of that = this
+    }.bind(this));//trying binding instead of that = this
   }
+
+  // saveNewUser: function (params, )
 
 });
 
